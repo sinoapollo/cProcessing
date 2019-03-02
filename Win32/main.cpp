@@ -428,6 +428,7 @@ void CALLBACK TimerDrawProc(HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime
 {
     KillTimer(hwnd, DRAW_TIMER);
     if ($loop) {
+        resetMatrix();
         draw();
         SwapBuffers(GetDC(hwnd));
     }
