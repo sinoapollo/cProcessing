@@ -1,0 +1,91 @@
+# depslib dependency file v1.0
+1549826542 source:d:\sourcecode\codeblocks\processing\main.c
+	<windows.h>
+	<gl/gl3w.h>
+
+1549648169 d:\sourcecode\codeblocks\processing\include\\gl\gl3w.h
+	<GL/glcorearb.h>
+
+1549648167 d:\sourcecode\codeblocks\processing\include\\gl\glcorearb.h
+	<windows.h>
+	<KHR/khrplatform.h>
+
+1549648169 d:\sourcecode\codeblocks\processing\include\\khr\khrplatform.h
+	<stdint.h>
+	<inttypes.h>
+	<stdint.h>
+
+1551533939 source:d:\sourcecode\processing\lib\openglagent.cpp
+	"OpenGLAgent.h"
+
+1551467970 d:\sourcecode\processing\lib\openglagent.h
+	<gl/glcorearb.h>
+	<gl/gl3w.h>
+	<OpenGL/gl3.h>
+
+1549868993 d:\sourcecode\processing\win32\include\\gl\glcorearb.h
+	<windows.h>
+	<KHR/khrplatform.h>
+
+1549868993 d:\sourcecode\processing\win32\include\\khr\khrplatform.h
+	<stdint.h>
+	<inttypes.h>
+	<stdint.h>
+
+1549868993 d:\sourcecode\processing\win32\include\\gl\gl3w.h
+	<GL/glcorearb.h>
+
+1549868993 source:d:\sourcecode\processing\win32\lib\gl3w.c
+	<GL/gl3w.h>
+	<stdlib.h>
+	<windows.h>
+	<dlfcn.h>
+	<dlfcn.h>
+
+1551535164 source:d:\sourcecode\processing\sketch\sketch.cpp
+	"lib/Processing.h"
+
+1551534943 d:\sourcecode\processing\\lib\processing.h
+	<string>
+	<vector>
+	<array>
+	"OpenGLAgent.h"
+
+1551467970 d:\sourcecode\processing\\lib\openglagent.h
+	<gl/glcorearb.h>
+	<gl/gl3w.h>
+	<OpenGL/gl3.h>
+
+1551535441 source:d:\sourcecode\processing\lib\processing.cpp
+	"Processing.h"
+	<algorithm>
+	<string>
+	<cmath>
+	<ctime>
+	<unistd.h>
+	<unistd.h>
+
+1551534943 d:\sourcecode\processing\lib\processing.h
+	<string>
+	<vector>
+	<array>
+	"OpenGLAgent.h"
+
+1551534971 source:d:\sourcecode\processing\win32\main.cpp
+	<windows.h>
+	"lib/Processing.h"
+	<gl/wglext.h>
+
+1549274960 d:\sourcecode\processing\win32\include\\gl\wglext.h
+	<windows.h>
+
+1550687874 d:\sourcecode\processing\win32\include\\gl\gl.h
+	<windows.h>
+
+1551105866 d:\sourcecode\processing\win32\wb_gl_loader.h
+	<stddef.h>
+	<Windows.h>
+	<Wingdi.h>
+	<Windows.h>
+	<Wingdi.h>
+

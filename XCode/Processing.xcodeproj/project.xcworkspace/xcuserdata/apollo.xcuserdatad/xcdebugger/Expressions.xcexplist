@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VariablesViewState
+   version = "1.0">
+   <ContextStates>
+      <ContextState
+         contextName = "ellipse(float, float, float, float):Processing.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "vertexData[2]">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "point(float, float, float):Processing.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "$stroke">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+      <ContextState
+         contextName = "drawArray(void const*, long, unsigned int, int, int):Processing.cpp">
+         <PersistentStrings>
+            <PersistentString
+               value = "$curMat">
+            </PersistentString>
+         </PersistentStrings>
+      </ContextState>
+   </ContextStates>
+</VariablesViewState>
