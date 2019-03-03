@@ -11,6 +11,7 @@
 #include <string>
 #include <cmath>
 #include <ctime>
+#include <stdlib.h>
 #ifdef __linux__
 #include <unistd.h>
 #elif defined(_WIN32) or defined(_WIN64)
@@ -60,6 +61,9 @@ GLint $displayDensity = 1;
 
 //for pixelDensity
 GLint $pixelDensity = 1;
+
+//for random
+int $randSeed = -1;
 
 void drawArray(const GLvoid *data, GLsizeiptr size, GLenum mode, GLint first, GLsizei count) {
     GLuint vertexArrayObject;
@@ -413,8 +417,8 @@ void pushStyle();
  frameRate()
  */
 void redraw() {
-//    if (draw)
-//        draw();
+    if (draw)
+        draw();
 }
 
 /*
@@ -4045,8 +4049,8 @@ void ellipse(float a, float b, float c, float d)
         vertexData[3] = 1.0;
         vertexData[7] = 1.0;
         for(int i = 1; i <= $ellipseDetail; i ++) {
-            vertexData[8 * i] = rx * cos(2 * PI / $ellipseDetail * (i - 1));
-            vertexData[8 * i + 1] = ry * sin(2 * PI / $ellipseDetail * (i - 1));
+            vertexData[8 * i] = centerx + rx * cos(2 * PI / $ellipseDetail * (i - 1));
+            vertexData[8 * i + 1] = centery + ry * sin(2 * PI / $ellipseDetail * (i - 1));
             vertexData[8 * i + 2] = $zP2D;
             vertexData[8 * i + 3] = 1.0;
             vertexData[8 * i + 7] = 1.0;
@@ -9847,8 +9851,19 @@ Returns    float
 Related    randomSeed()
 noise()
 */
-float random(float high);
-float random(float low, float high);
+float random(float high)
+{
+    if ($randSeed < 0)
+        srand((unsigned)time(NULL));
+    return rand() * high / RAND_MAX;
+}
+
+float random(float low, float high)
+{
+    if ($randSeed < 0)
+        srand((unsigned)time(NULL));
+    return rand() * (high - low) / RAND_MAX + low;
+}
 
 /*
 Name
@@ -9911,7 +9926,11 @@ Related    random()
 noise()
 noiseSeed()
 */
-void randomSeed(int seed);
+void randomSeed(int seed)
+{
+    $randSeed = abs(seed);
+    srand((unsigned int)$randSeed);
+}
 
 
 //Constants

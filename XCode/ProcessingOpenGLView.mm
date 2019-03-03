@@ -68,6 +68,8 @@ void resizeWindow(int width, int height)
 - (void)loop {
     $mouseX = self.window.mouseLocationOutsideOfEventStream.x - 1;
     $mouseY = $height - (self.window.mouseLocationOutsideOfEventStream.y - 1);
+    $mouseX = $mouseX < 0 ? 0 : ($mouseX > $width ? $width : $mouseX);
+    $mouseY = $mouseY < 0 ? 0 : ($mouseY > $height ? $height : $mouseY);
     if ($loop) {
         if (draw) {
             resetMatrix();
