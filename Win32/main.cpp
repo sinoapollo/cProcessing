@@ -17,6 +17,7 @@ void DisableOpenGL(HWND, HDC, HGLRC);
 #define DRAW_TIMER 1
 void CALLBACK TimerDrawProc(HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime);
 
+extern void draw() __attribute__((weak_import));
 
 int WINAPI WinMain(HINSTANCE hInstance,
                    HINSTANCE hPrevInstance,
@@ -44,9 +45,8 @@ int WINAPI WinMain(HINSTANCE hInstance,
     }
 
     /* start draw loop */
-    if (draw) {
-        if ($frameRate > 0)
-            SetTimer(hwnd, DRAW_TIMER, 1000 / $frameRate, TimerDrawProc);
+    if (draw && $frameRate > 0) {
+        SetTimer(hwnd, DRAW_TIMER, 1000 / $frameRate, TimerDrawProc);
     }
 
     /* program main loop */
@@ -427,6 +427,11 @@ void DisableOpenGL (HWND hwnd, HDC hDC, HGLRC hRC)
 void CALLBACK TimerDrawProc(HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
 {
     KillTimer(hwnd, DRAW_TIMER);
+    POINT point;
+    GetCursorPos(&point);
+    ScreenToClient(hwnd, &point);
+    $mouseX = point.x;
+    $mouseY = point.y;
     if ($loop) {
         resetMatrix();
         draw();

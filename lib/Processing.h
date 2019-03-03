@@ -9887,7 +9887,7 @@ redraw()
 frameRate()
 background()
 */
-void draw() __attribute__((weak_import));
+//void draw() __attribute__((weak_import));//unknown reason not working with mingW
 
 /*
 Name

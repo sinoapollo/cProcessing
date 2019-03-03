@@ -19,6 +19,7 @@
 #include <unistd.h>
 #endif
 
+extern void draw() __attribute__((weak_import));
 
 //inner members for Processing
 //for loop
@@ -5584,7 +5585,7 @@ mouseMoved()
 mouseDragged()
 mouseWheel()
 */
-int $mouseButton;
+int $mouseButton = -1;
 
 /*mouseClicked()
 mouseDragged()
@@ -5618,7 +5619,7 @@ mouseDragged()
 mouseButton
 mouseWheel()
 */
-bool $mousePressed;
+bool $mousePressed = false;
 
 /*mouseReleased()
 mouseWheel()*/
@@ -7591,7 +7592,7 @@ void fill(colorType rgb)
 
 void fill(colorType rgb, float alpha)
 {
-    $fill = ((unsigned int)(255 * alpha / $colorMaxA)) << 24 + rgb;
+    $fill = (((unsigned int)(255 * alpha / $colorMaxA)) << 24) + rgb;
     $noFill = false;
 }
 
@@ -7890,22 +7891,22 @@ Related    colorMode()
 */
 colorType color(int gray)
 {
-    return (HSB - $colorMode) * (gray << 16 + gray << 8 + gray);
+    return (HSB - $colorMode) * ((gray << 16) + (gray << 8) + gray);
 }
 
 colorType color(int gray, float alpha)
 {
-    return (HSB - $colorMode) * ((colorType)(255 * alpha / $colorMaxA) << 24 + gray << 16 + gray << 8 + gray);
+    return (HSB - $colorMode) * ((((colorType)(255 * alpha / $colorMaxA)) << 24) + (gray << 16) + (gray << 8) + gray);
 }
 
 colorType color(float v1, float v2, float v3)
 {
-   return (HSB - $colorMode) * ((colorType)(255 * v1 / $colorMax1) << 16 + ((colorType)(255 * v2 / $colorMax2) << 8) + (colorType)(255 * v3 / $colorMax3));
+   return (HSB - $colorMode) * ((((colorType)(255 * v1 / $colorMax1)) << 16) + (((colorType)(255 * v2 / $colorMax2)) << 8) + (colorType)(255 * v3 / $colorMax3));
 }
 
 colorType color(float v1, float v2, float v3, float alpha)
 {
-    return (HSB - $colorMode) * ((colorType)(255 * alpha / $colorMaxA) << 24 + (colorType)(255 * v1 / $colorMax1) << 16 + (colorType)(255 * v2 / $colorMax2) << 8 + (colorType)(255 * v3 / $colorMax3));
+    return (HSB - $colorMode) * ((((colorType)(255 * alpha / $colorMaxA)) << 24) + (((colorType)(255 * v1 / $colorMax1)) << 16) + (((colorType)(255 * v2 / $colorMax2)) << 8) + (colorType)(255 * v3 / $colorMax3));
 }
 
 /*
