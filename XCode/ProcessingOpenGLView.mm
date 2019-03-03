@@ -11,6 +11,8 @@
 #include <OpenGL/gl3.h>
 #include "lib/Processing.h"
 
+extern void draw() __attribute__((weak_import));
+
 /*
  * Name: resizeWindow
  * Params: width - new Window's width
