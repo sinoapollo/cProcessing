@@ -66,6 +66,178 @@ GLint $pixelDensity = 1;
 //for random
 int $randSeed = -1;
 
+//for image
+_penum $imageMode = CORNER;
+bool $noTint = false;
+_penum $blendMode = BLEND;
+
+//for beginShape
+_penum shapeKind;
+std::vector<PVector> vertices;
+
+//
+class PointArray
+{
+public:
+    PointArray(PVector & startPoint) {
+        this->points.push_back(startPoint);
+        this->Bound[0].x = this->Bound[1].x = startPoint.x;
+        this->Bound[0].y = this->Bound[1].y = startPoint.y;
+        this->status = 1;
+    }
+    PointArray() {
+        this->reset();
+    }
+    void addPoint(PVector & point) {
+        this->points.push_back(point);
+        if (point.x < this->Bound[0].x) this->Bound[0].x = point.x;
+        else if (point.x > this->Bound[1].x) this->Bound[1].x = point.x;
+        if (point.y < this->Bound[0].y) this->Bound[0].y = point.x;
+        else if (point.y > this->Bound[1].y) this->Bound[1].y = point.y;
+    }
+    void reset() {
+        this->points.clear();
+        this->Bound[0].x = INT_MAX;
+        this->Bound[0].y = INT_MAX;
+        this->Bound[1].x = INT_MIN;
+        this->Bound[1].y = INT_MIN;
+        this->status = 1;
+    }
+    std::vector<PVector> points;
+    PVector Bound[2];
+    int status; // 1 unclosed, 0 closed
+};
+
+//check the point is on the left or right side of the line
+//return >0  right, <0 -left, =0- in line
+int getPointDirection(PVector oldP1, PVector oldP2, PVector p)
+{
+    if (oldP1.x == oldP2.x) {return (p.x - oldP1.x) * (oldP2      .x - oldP1.x);}
+    //y = kx + b;
+    return (p.x * (oldP2.y - oldP1.y) + oldP1.y * oldP2.x - oldP1.x * oldP2.y) - p.y * (oldP2.x - oldP1.x);
+}
+
+/*
+ * Params: newP1, newP2, for new line
+ *         oldP1, oldP2, for exist line
+ */
+int checkCross(PVector newP1, PVector newP2, PVector oldP1, PVector oldP2, PVector & crossPoint)
+{
+
+    crossPoint.x = newP1.y * (oldP2.x - oldP1.x) - ((oldP2.y - oldP1.y) * newP1.x + (oldP2.x * oldP1.y - oldP1.x * oldP2.y));
+    if (abs(crossPoint.x) < 0.00001) {
+        crossPoint = newP1;
+        return 1; //Point newP1 in line old
+    }
+    crossPoint.y = newP2.y * (oldP2.x - oldP1.x) - ((oldP2.y - oldP1.y) * newP2.x + (oldP2.x * oldP1.y - oldP1.x * oldP2.y));
+    if (abs(crossPoint.y) < 0.00001) {
+        crossPoint = newP2;
+        return 2; //Point newP2 in line old
+    }
+
+    if (crossPoint.x * crossPoint.y < 0) {
+        crossPoint.x = ((newP2.x * newP1.y - newP1.x * newP2.y) * (oldP2.x - oldP1.x) - (oldP2.x * oldP1.y - oldP1.x * oldP2.y) * (newP2.x - newP1.x) ) / ((oldP2.y - oldP1.y) * (newP2.x - newP1.x) - (newP2.y - newP1.y) * (oldP2.x - oldP1.x));
+        crossPoint.y = ((oldP2.y - oldP1.y) * crossPoint.x + (oldP2.x * oldP1.y - oldP1.x * oldP2.y)) / (oldP2.x - oldP1.x);
+        return 3; //new line cross old line
+    }
+
+    crossPoint.x = oldP1.y * (newP2.x - newP1.x) - ((newP2.y - newP1.y) * oldP1.x + (newP2.x * newP1.y - newP1.x * newP2.y));
+    if (abs(crossPoint.x) < 0.00001) {
+        crossPoint = oldP1; //Point oldP1 in new line
+        return 4;
+    }
+    crossPoint.y = oldP2.y * (newP2.x - newP1.x) - ((newP2.y - newP1.y) * oldP2.x + (newP2.x * newP1.y - newP1.x * newP2.y));
+    if (abs(crossPoint.y) < 0.00001) {
+        crossPoint = oldP2; //Point oldP2 in new line
+        return 5;
+    }
+
+    if (crossPoint.x * crossPoint.y < 0) {
+        return -1; // new line at the same side of old line, and old line cross extended new line(no crosspoint)
+    }
+
+    return 0;
+}
+
+//预设条件： 一线到底， 默认闭合，
+//设计思路：从一点出发，遍历向左向右闭合，需要解决的是交叉时怎么处理，特别是穿越现有闭合（好像可以忽略）
+//有交叉就会有闭合
+
+int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> & pointArrays)
+{
+    std::vector<PointArray> closedPointArrays;
+    PointArray pointArray(points.back());
+    pointArray.addPoint(*(points.begin()));
+    PVector crossPoint;
+    for (std::vector<PVector>::iterator i = points.begin() + 1; i != points.end(); i ++) {
+        for (std::vector<PVector>::iterator j = pointArray.points.end() - 2; j > pointArray.points.begin(); j --) {
+            if(checkCross(*(i - 1), *i, *(j - 1), *j, crossPoint) > 0) {
+                PointArray closedPoints(crossPoint);
+                for (std::vector<PVector>::iterator k = j; k != pointArray.points.end(); k ++) {
+                    closedPoints.addPoint(*k);
+                }
+                pointArray.points.erase(j, pointArray.points.end());
+                closedPoints.status = 0;
+                closedPointArrays.push_back(closedPoints);
+                pointArray.addPoint(crossPoint);
+                break;
+            }
+        }
+        pointArray.addPoint(*i);
+    }
+    if (pointArray.points.size() > 2) {
+        pointArray.points.erase(pointArray.points.begin());
+        pointArray.status = 0;
+        closedPointArrays.push_back(pointArray);
+    }
+    for (std::vector<PointArray>::iterator item = closedPointArrays.begin(); item != closedPointArrays.end(); item ++) {
+        pointArray.reset();
+        std::vector<PVector>::iterator itPoint = (*item).points.begin();
+        pointArray.addPoint(*itPoint);
+        itPoint ++;
+        pointArray.addPoint(*itPoint);
+        itPoint = (*item).points.end() - 1;
+        int direction;
+        while(itPoint > (*item).points.begin() + 1 && !(direction = getPointDirection(*((*item).points.begin()), *((*item).points.begin()+1), *itPoint))) {
+            itPoint --;
+        }
+        if (itPoint == (*item).points.begin() + 1) continue;
+        printf("%d %d\n", direction, item->points.size());
+        pointArrays.push_back(pointArray);
+        int curGroup = pointArrays.size() - 1;
+        printf("curGroup %d\n", curGroup);
+        for (int itemIndex = 2; itemIndex < (*item).points.size(); itemIndex ++) {
+            itPoint = (*item).points.begin() + itemIndex;
+            printf("itPoint %d\n", itPoint);
+            for (int index = pointArrays.size() - 1; index >= curGroup; index --) {
+                PointArray * tempPoints = & pointArrays[index];
+                printf("index %d\n", index);
+                printf("index points.size %d\n", tempPoints->points.size());
+                printf("pointArrays.size %d\n", pointArrays.size());
+                if (getPointDirection(*(tempPoints->points.end() - 2), tempPoints->points.back(), *itPoint) * direction > 0) {
+                    tempPoints->addPoint(*itPoint);
+                    break;
+                }
+                else {
+                    if (tempPoints->points.size() > 2)
+                        tempPoints->status = 0;
+                    pointArray.reset();
+                    pointArray.addPoint(*(tempPoints->points.begin()));
+                    pointArray.addPoint(tempPoints->points.back());
+                    printf("pointArray.points.size %d\n", pointArray.points.size());
+                    printf("before pointArrays.size %d\n", pointArrays.size());
+                    pointArrays.push_back(pointArray);
+                    printf("after pointArrays.size %d\n", pointArrays.size());
+                }
+            }
+        }
+        for (std::vector<PointArray>::iterator curGroup1 = pointArrays.begin() + curGroup; curGroup1 != pointArrays.end(); curGroup1 ++) {
+            (*curGroup1).status = 0;
+        }
+    }
+    return pointArrays.size();
+}
+
 void drawArray(const GLvoid *data, GLsizeiptr size, GLenum mode, GLint first, GLsizei count) {
     GLuint vertexArrayObject;
     GLuint vertexBuffer;
@@ -90,6 +262,48 @@ void drawArray(const GLvoid *data, GLsizeiptr size, GLenum mode, GLint first, GL
 
     glDisableVertexAttribArray((GLuint)openglAgent.colourAttribute);
     glDisableVertexAttribArray((GLuint)openglAgent.positionAttribute);
+
+}
+
+void drawVertices(std::vector<PVector> points, _penum mode)
+{
+    std::vector<PointArray> pointArrays;
+    if (!$noFill) {
+        buildFillPointArrays(points, pointArrays);
+        for (std::vector<PointArray>::iterator item = pointArrays.begin(); item != pointArrays.end(); item ++) {
+            GLfloat vertexData[8 * item->points.size()];
+            for(int i = item->points.size() - 1; i >= 0; i --) {
+                vertexData[8 * i] = item->points[i].x;
+                vertexData[8 * i + 1] = item->points[i].y;
+                vertexData[8 * i + 2] = $zP2D;
+                vertexData[8 * i + 3] = 1.0;
+                vertexData[8 * i + 7] = 1.0;
+                vertexData[8 * i + 4] = red($fill);
+                vertexData[8 * i + 5] = green($fill);
+                vertexData[8 * i + 6] = blue($fill);
+            }
+            drawArray(vertexData, 8 * item->points.size() * sizeof(GLfloat), GL_TRIANGLE_FAN, 0, item->points.size());
+        }
+    }
+    if (!$noStroke) {
+        GLfloat vertexData[8 * points.size()];
+        for(int i = points.size() - 1; i >= 0; i --) {
+            vertexData[8 * i] = points[i].x;
+            vertexData[8 * i + 1] = points[i].y;
+            printf("%d %f %f\n", i, vertexData[8 * i], vertexData[8 * i + 1]);
+            vertexData[8 * i + 2] = $zP2D;
+            vertexData[8 * i + 3] = 1.0;
+            vertexData[8 * i + 7] = 1.0;
+            vertexData[8 * i + 4] = red($stroke);
+            vertexData[8 * i + 5] = green($stroke);
+            vertexData[8 * i + 6] = blue($stroke);
+        }
+        if (mode == CLOSE)
+            drawArray(vertexData, 8 * points.size() * sizeof(GLfloat), GL_LINE_LOOP, 0, points.size());
+        else
+            drawArray(vertexData, 8 * points.size() * sizeof(GLfloat), GL_LINE_STRIP, 0, points.size());
+    }
+
 }
 
 //Structure
@@ -4201,38 +4415,12 @@ void point(float x, float y, float z)
  */
 void quad(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4)
 {
-    GLfloat vertexData[8 * 4];
-    if (!$noFill || !$noStroke) {
-        for(int i = 0; i < 4; i ++) {
-            vertexData[8 * i + 2] = $zP2D;
-            vertexData[8 * i + 3] = 1.0;
-            vertexData[8 * i + 7] = 1.0;
-        }
-        vertexData[0] = x1;
-        vertexData[1] = y1;
-        vertexData[8] = x2;
-        vertexData[9] = y2;
-        vertexData[16] = x3;
-        vertexData[17] = y3;
-        vertexData[24] = x4;
-        vertexData[25] = y4;
-    }
-    if (!$noFill) {
-        for(int i = 0; i < 4; i ++) {
-            vertexData[8 * i + 4] = red($fill);
-            vertexData[8 * i + 5] = green($fill);
-            vertexData[8 * i + 6] = blue($fill);
-        }
-        drawArray(vertexData, 8 * 4 * sizeof(GLfloat), GL_TRIANGLE_FAN, 0, 4);
-    }
-    if (!$noStroke) {
-        for(int i = 0; i < 4; i ++) {
-            vertexData[8 * i + 4] = red($stroke);
-            vertexData[8 * i + 5] = green($stroke);
-            vertexData[8 * i + 6] = blue($stroke);
-        }
-        drawArray(vertexData, 8 * 4 * sizeof(GLfloat), GL_LINE_LOOP, 0, 4);
-    }
+    std::vector<PVector> points;
+    points.push_back(PVector(x1, y1));
+    points.push_back(PVector(x2, y2));
+    points.push_back(PVector(x3, y3));
+    points.push_back(PVector(x4, y4));
+    drawVertices(points, CLOSE);
 }
 
 /*
@@ -4496,14 +4684,181 @@ Returns    void
 Related    bezierVertex()
 curve()
 */
+
+/* translate from https://github.com/mattdesl/adaptive-bezier-curve
+ Anti-Grain Geometry - Version 2.4 Copyright (C) 2002-2005 Maxim Shemanarev (McSeem)
+ */
+void recursive(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, std::vector<PVector> &points, int level) {
+
+#define RECURSION_LIMIT 8
+#define FLT_EPSILON 1.19209290E-7
+#define PATH_DISTANCE_EPSILON 1.0
+
+#define curve_angle_tolerance_epsilon 0.01
+#define m_angle_tolerance 0
+#define m_cusp_limit 0
+
+    float scale = 1.0;
+
+    float distanceTolerance = PATH_DISTANCE_EPSILON / scale;
+    distanceTolerance *= distanceTolerance;
+
+    if(level >= RECURSION_LIMIT) return;
+
+    // Calculate all the mid-points of the line segments
+    //----------------------
+    float x12   = (x1 + x2) / 2;
+    float y12   = (y1 + y2) / 2;
+    float x23   = (x2 + x3) / 2;
+    float y23   = (y2 + y3) / 2;
+    float x34   = (x3 + x4) / 2;
+    float y34   = (y3 + y4) / 2;
+    float x123  = (x12 + x23) / 2;
+    float y123  = (y12 + y23) / 2;
+    float x234  = (x23 + x34) / 2;
+    float y234  = (y23 + y34) / 2;
+    float x1234 = (x123 + x234) / 2;
+    float y1234 = (y123 + y234) / 2;
+
+    if(level > 0) { // Enforce subdivision first time
+        // Try to approximate the full cubic curve by a single straight line
+        //------------------
+        float dx = x4-x1;
+        float dy = y4-y1;
+
+        float d2 = abs((x2 - x4) * dy - (y2 - y4) * dx);
+        float d3 = abs((x3 - x4) * dy - (y3 - y4) * dx);
+
+        float da1, da2;
+
+        if(d2 > FLT_EPSILON && d3 > FLT_EPSILON) {
+            // Regular care
+            //-----------------
+            if((d2 + d3)*(d2 + d3) <= distanceTolerance * (dx*dx + dy*dy)) {
+                // If the curvature doesn't exceed the distanceTolerance value
+                // we tend to finish subdivisions.
+                //----------------------
+                if(m_angle_tolerance < curve_angle_tolerance_epsilon) {
+                    points.push_back(PVector(x1234, y1234));
+                    return;
+                }
+
+                // Angle & Cusp Condition
+                //----------------------
+                float a23 = atan2(y3 - y2, x3 - x2);
+                da1 = abs(a23 - atan2(y2 - y1, x2 - x1));
+                da2 = abs(atan2(y4 - y3, x4 - x3) - a23);
+                if(da1 >= PI) da1 = 2 * PI - da1;
+                if(da2 >= PI) da2 = 2 * PI - da2;
+
+                if(da1 + da2 < m_angle_tolerance) {
+                    // Finally we can stop the recursion
+                    //----------------------
+                    points.push_back(PVector(x1234, y1234));
+                    return;
+                }
+
+                if(m_cusp_limit != 0) {
+                    if(da1 > m_cusp_limit) {
+                        points.push_back(PVector(x2, y2));
+                        return;
+                    }
+
+                    if(da2 > m_cusp_limit) {
+                        points.push_back(PVector(x3, y3));
+                        return;
+                    }
+                }
+            }
+        }
+        else {
+            if(d2 > FLT_EPSILON) {
+                // p1,p3,p4 are collinear, p2 is considerable
+                //----------------------
+                if(d2 * d2 <= distanceTolerance * (dx*dx + dy*dy)) {
+                    if(m_angle_tolerance < curve_angle_tolerance_epsilon) {
+                        points.push_back(PVector(x1234, y1234));
+                        return;
+                    }
+
+                    // Angle Condition
+                    //----------------------
+                    da1 = abs(atan2(y3 - y2, x3 - x2) - atan2(y2 - y1, x2 - x1));
+                    if(da1 >= PI) da1 = 2 * PI - da1;
+
+                    if(da1 < m_angle_tolerance) {
+                        points.push_back(PVector(x2, y2));
+                        points.push_back(PVector(x3, y3));
+                        return;
+                    }
+
+                    if(m_cusp_limit != 0) {
+                        if(da1 > m_cusp_limit) {
+                            points.push_back(PVector(x2, y2));
+                            return;
+                        }
+                    }
+                }
+            }
+            else if(d3 > FLT_EPSILON) {
+                // p1,p2,p4 are collinear, p3 is considerable
+                //----------------------
+                if(d3 * d3 <= distanceTolerance * (dx*dx + dy*dy)) {
+                    if(m_angle_tolerance < curve_angle_tolerance_epsilon) {
+                        points.push_back(PVector(x1234, y1234));
+                        return;
+                    }
+
+                    // Angle Condition
+                    //----------------------
+                    da1 = abs(atan2(y4 - y3, x4 - x3) - atan2(y3 - y2, x3 - x2));
+                    if(da1 >= PI) da1 = 2 * PI - da1;
+
+                    if(da1 < m_angle_tolerance) {
+                        points.push_back(PVector(x2, y2));
+                        points.push_back(PVector(x3, y3));
+                        return;
+                    }
+
+                    if(m_cusp_limit != 0) {
+                        if(da1 > m_cusp_limit)
+                        {
+                            points.push_back(PVector(x3, y3));
+                            return;
+                        }
+                    }
+                }
+            }
+            else {
+                // Collinear case
+                //-----------------
+                dx = x1234 - (x1 + x4) / 2;
+                dy = y1234 - (y1 + y4) / 2;
+                if(dx*dx + dy*dy <= distanceTolerance) {
+                    points.push_back(PVector(x1234, y1234));
+                    return;
+                }
+            }
+        }
+    }
+
+    // Continue subdivision
+    //----------------------
+    recursive(x1, y1, x12, y12, x123, y123, x1234, y1234, points, level + 1);
+    recursive(x1234, y1234, x234, y234, x34, y34, x4, y4, points, level + 1);
+}
+
 void bezier(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4)
 {
-
+    std::vector<PVector> points;
+    points.push_back(PVector(x1, y1));
+    recursive(x1, y1, x2, y2, x3, y3, x4, y4, points, 0);
+    points.push_back(PVector(x4, y4));
+    drawVertices(points, OPEN);
 }
 
 void bezier(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, float x4, float y4, float z4)
 {
-
 }
 
 /*
@@ -4659,7 +5014,57 @@ Related    curveVertex()
 curveTightness()
 bezier()
 */
-void curve(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4);
+
+/* https://github.com/actionnick/cat-rom-spline */
+void catmullRomSplinePoints(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, std::vector<PVector> &points) {
+#define knot 0.5
+//#define samples $curveDetail
+    float segmentDist = dist(x2, y2, x3, y3);
+
+    float t0 = 0;
+    float t1 = pow(dist(x1, y1, x2, y2), knot);
+    float t2 = pow(segmentDist, knot) + t1;
+    float t3 = pow(dist(x3, y3, x4, y4), knot) + t2;
+
+    int samples = 0;
+    if (!samples) {
+        samples = segmentDist * 1.5;
+    }
+
+    float sampleStep = (t2 - t1) / samples;
+    float t = t1;
+    float T10 = t1 - t0;
+    float T20 = t2 - t0;
+    //float T30 = t3 - t0;
+    float T21 = t2 - t1;
+    float T31 = t3 - t1;
+    float T32 = t3 - t2;
+    points.push_back(PVector(x2, y2));
+    while (t < t2) {
+        t += sampleStep;
+        float T0 = t0 - t;
+        float T1 = t1 - t;
+        float T2 = t2 - t;
+        float T3 = t3 - t;
+
+        points.push_back(PVector((x1 * T1 / T10 + x2 * -T0 / T10) * T2 / T20 * T2 / T21
+                                 + (x2 * T2 / T21 + x3 * -T1 / T21) * (-T0 / T20 * T2 / T21 + T3 / T31 * -T1 / T21)
+                                 + (x3 * T3 / T32 + x4 * -T2 / T32) * -T1 / T31 * -T1 / T21,
+                                 (y1 * T1 / T10 + y2 * -T0 / T10) * T2 / T20 * T2 / T21
+                                 + (y2 * T2 / T21 + y3 * -T1 / T21) * (-T0 / T20 * T2 / T21 + T3 / T31 * -T1 / T21)
+                                 + (y3 * T3 / T32 + y4 * -T2 / T32) * -T1 / T31 * -T1 / T21));
+    }
+    points.push_back(PVector(x3, y3));
+}
+
+
+void curve(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4)
+{
+    std::vector<PVector> points;
+    catmullRomSplinePoints(x1, y1, x2, y2, x3, y3, x4, y4, points);
+    drawVertices(points, OPEN);
+}
+
 void curve(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, float x4, float y4, float z4);
 
 /*
@@ -5225,8 +5630,16 @@ vertex()
 curveVertex()
 bezierVertex()
 */
-void beginShape();
-void beginShape(_penum kind);
+void beginShape()
+{
+    beginShape(POINTS);
+}
+
+void beginShape(_penum kind)
+{
+    shapeKind = kind;
+    vertices.clear();
+}
 
 /*
 Name
@@ -5359,8 +5772,17 @@ Returns    void
 Related    PShape
 beginShape()
 */
-void endShape();
-void endShape(_penum mode);
+void endShape()
+{
+    endShape(OPEN);
+}
+
+void endShape(_penum mode)
+{
+    drawVertices(vertices, mode);
+    vertices.clear();
+    shapeKind = POINTS;
+}
 
 /*
 Name
@@ -5464,9 +5886,21 @@ quadraticVertex()
 curveVertex()
 texture()
 */
-void vertex(float x, float y);
-void vertex(float x, float y, float z);
-void vertex(float v[]);
+void vertex(float x, float y)
+{
+    vertex(x, y, $zP2D);
+}
+
+void vertex(float x, float y, float z)
+{
+    vertices.push_back(PVector(x, y, z));
+}
+
+void vertex(float v[])
+{
+    vertices.push_back(PVector(v[0], v[1], v[2]));
+}
+
 void vertex(float x, float y, float u, float v);
 void vertex(float x, float y, float z, float u, float v);
 
@@ -5999,8 +6433,8 @@ Related    pushMatrix()
 */
 void popMatrix()
 {
-    $matStack.pop_back();
     $curMat = $matStack.back();
+    $matStack.pop_back();
 }
 
 /*
@@ -6139,17 +6573,14 @@ radians()
 */
 void rotate(float angle)
 {
-    float cosa = cosf(angle);
-    float sina = sinf(angle);
-    $curMat.m[0] = $curMat.m[0] * cosa;
-    $curMat.m[1] = $curMat.m[0] * sina;
-    $curMat.m[2] = $curMat.m[2];
-    $curMat.m[3] = $curMat.m[3];
-    $curMat.m[4] = -$curMat.m[5] * sina;
-    $curMat.m[5] = $curMat.m[5] * cosa;
-    $curMat.m[12] = $curMat.m[12] * cosa - $curMat.m[13] * sina;
-    $curMat.m[13] = $curMat.m[12] * sina + $curMat.m[13] * cosa;
-    $curMat.m[14] = $curMat.m[14] * $curMat.m[10];
+    float cosa = cosf(-angle);
+    float sina = sinf(-angle);
+    float m0 = $curMat.m[0];
+    float m5 = $curMat.m[5];
+    $curMat.m[0] = m0 * cosa;
+    $curMat.m[1] = m5 * sina;
+    $curMat.m[4] = m0 * sina;
+    $curMat.m[5] = m5 * cosa;
 }
 
 /*
@@ -6157,6 +6588,7 @@ Name
 rotateX()
 Examples
 example pic
+
 size(100, 100, P3D);
 translate(width/2, height/2);
 rotateX(PI/3.0);
@@ -6180,7 +6612,17 @@ rotateZ()
 scale()
 translate()
 */
-void rotateX(float angle);
+void rotateX(float angle)
+{
+    float cosa = cosf(-angle);
+    float sina = sinf(-angle);
+    float m5 = $curMat.m[5];
+    float m10 = $curMat.m[10];
+    $curMat.m[5] = m5 * cosa;
+    $curMat.m[6] = m10 * sina;
+    $curMat.m[9] = m5 * sina;
+    $curMat.m[10] = m10 * cosa;
+}
 
 /*
 Name
@@ -6210,7 +6652,17 @@ rotateZ()
 scale()
 translate()
 */
-void rotateY(float angle);
+void rotateY(float angle)
+{
+    float cosa = cosf(-angle);
+    float sina = sinf(-angle);
+    float m0 = $curMat.m[0];
+    float m10 = $curMat.m[10];
+    $curMat.m[0] = m0 * cosa;
+    $curMat.m[8] = m10 * sina;
+    $curMat.m[2] = m0 * sina;
+    $curMat.m[10] = m10 * cosa;
+}
 
 /*
 Name
@@ -6240,7 +6692,17 @@ rotateY()
 scale()
 translate()
 */
-void rotateZ(float angle);
+void rotateZ(float angle)
+{
+    float cosa = cosf(-angle);
+    float sina = sinf(-angle);
+    float m5 = $curMat.m[5];
+    float m10 = $curMat.m[10];
+    $curMat.m[5] = m5 * cosa;
+    $curMat.m[6] = m10 * sina;
+    $curMat.m[9] = m5 * sina;
+    $curMat.m[10] = m10 * cosa;
+}
 
 /*
 Name
@@ -6286,8 +6748,11 @@ rotateZ()
 */
 void scale(float s)
 {
-    for (int i = 0; i < 16; i ++)
+    for (int i = 0; i < 4; i ++) {
         $curMat.m[i] *= s;
+        $curMat.m[i + 4] *= s;
+        $curMat.m[i + 8] *= s;
+    }
 }
 void scale(float x, float y)
 {
@@ -6305,6 +6770,7 @@ void scale(float x, float y, float z)
     }
 }
 /*
+
 Name
 shearX()
 Examples
@@ -8005,7 +8471,10 @@ Returns    int
 Related    color()
 lerp()
 */
-int lerpColor(int c1, int c2, float awt);
+int lerpColor(int c1, int c2, float awt)
+{
+    return (int)((c2 - c1) * awt) + c1;
+}
 
 /*
 Name
@@ -8220,7 +8689,10 @@ PImage
 image()
 background()
 */
-void imageMode(_penum mode);
+void imageMode(_penum mode)
+{
+    $imageMode = mode;
+}
 
 /*
 Name
@@ -8297,7 +8769,10 @@ Returns    void
 Related    tint()
 image()
 */
-void noTint();
+void noTint()
+{
+    $noTint = true;
+}
 
 /*
 Name
@@ -8914,7 +9389,10 @@ Parameters
 mode    int: the blending mode to use
 Returns    void
 */
-void blendMode(_penum mode);
+void blendMode(_penum mode)
+{
+    $blendMode = mode;
+}
 
 /*
 Name
@@ -9677,21 +10155,428 @@ Bitwise Operators
 //Calculation
 /*abs()
 ceil()
+*/
+
+/*
+Name
 constrain()
-dist()
+Examples
+void draw()
+{
+  background(204);
+  float mx = constrain(mouseX, 30, 70);
+  rect(mx-10, 40, 20, 20);
+}
+Description	Constrains a value to not exceed a maximum and minimum value.
+Syntax
+constrain(amt, low, high)
+Parameters
+amt	int, or float: the value to constrain
+low	int, or float: minimum limit
+high	int, or float: maximum limit
+Returns	float or int
+Related	max()
+min()
+*/
+float constrain(float amt, float low, float high)
+{
+    return amt < low ? low : (amt > high ? high :amt);
+}
+
+int constrain(int amt, int low, int high)
+{
+    return amt < low ? low : (amt > high ? high :amt);
+}
+
+/*
+ Name
+ dist()
+ Examples
+ // Sets the background gray value based on the distance
+ // of the mouse from the center of the screen
+ void draw() {
+ noStroke();
+ float d = dist(width/2, height/2, mouseX, mouseY);
+ float maxDist = dist(0, 0, width/2, height/2);
+ float gray = map(d, 0, maxDist, 0, 255);
+ fill(gray);
+ rect(0, 0, width, height);
+ }
+ Description    Calculates the distance between two points.
+ Syntax
+ dist(x1, y1, x2, y2)
+ dist(x1, y1, z1, x2, y2, z2)
+ Parameters
+ x1    float: x-coordinate of the first point
+ y1    float: y-coordinate of the first point
+ z1    float: z-coordinate of the first point
+ x2    float: x-coordinate of the second point
+ y2    float: y-coordinate of the second point
+ z2    float: z-coordinate of the second point
+ Returns    float
+ */
+float dist(float x1, float y1, float x2, float y2)
+{
+    x2 -= x1;
+    y2 -= y1;
+    return sqrt(x2 * x2 + y2 * y2);
+}
+float dist(float x1, float y1, float z1, float x2, float y2, float z2)
+{
+    x2 -= x1;
+    y2 -= y1;
+    z2 -= z1;
+    return sqrt(x2 * x2 + y2 * y2 + z2 * z2);
+}
+
+/*
 exp()
 floor()
+*/
+
+/*
+Name
 lerp()
-log()
+Examples
+example pic
+float a = 20;
+float b = 80;
+float c = lerp(a, b, .2);
+float d = lerp(a, b, .5);
+float e = lerp(a, b, .8);
+beginShape(POINTS);
+vertex(a, 50);
+vertex(b, 50);
+vertex(c, 50);
+vertex(d, 50);
+vertex(e, 50);
+endShape();
+example pic
+int x1 = 15;
+int y1 = 10;
+int x2 = 80;
+int y2 = 90;
+line(x1, y1, x2, y2);
+for (int i = 0; i <= 10; i++) {
+  float x = lerp(x1, x2, i/10.0) + 10;
+  float y = lerp(y1, y2, i/10.0);
+  point(x, y);
+}
+Description	Calculates a number between two numbers at a specific increment. The amt parameter is the amount to interpolate between the two values where 0.0 equal to the first point, 0.1 is very near the first point, 0.5 is half-way in between, etc. The lerp function is convenient for creating motion along a straight path and for drawing dotted lines.
+Syntax
+lerp(start, stop, amt)
+Parameters
+start	float: first value
+stop	float: second value
+amt	float: float between 0.0 and 1.0
+Returns	float
+Related	curvePoint()
+bezierPoint()
+lerp()
+lerpColor()
+*/
+float lerp(float start, float stop, float amt)
+{
+    return amt * (stop - start) + start;
+}
+
+
+/*log()
+*/
+
+/*
+Name
 mag()
+Examples
+example pic
+float x1 = 20;
+float x2 = 80;
+float y1 = 30;
+float y2 = 70;
+
+line(0, 0, x1, y1);
+println(mag(x1, y1));  // Prints "36.05551"
+line(0, 0, x2, y1);
+println(mag(x2, y1));  // Prints "85.44004"
+line(0, 0, x1, y2);
+println(mag(x1, y2));  // Prints "72.8011"
+line(0, 0, x2, y2);
+println(mag(x2, y2));  // Prints "106.30146"
+Description	Calculates the magnitude (or length) of a vector. A vector is a direction in space commonly used in computer graphics and linear algebra. Because it has no "start" position, the magnitude of a vector can be thought of as the distance from the coordinate 0,0 to its x,y value. Therefore, mag() is a shortcut for writing dist(0, 0, x, y).
+Syntax
+mag(a, b)
+mag(a, b, c)
+Parameters
+a	float: first value
+b	float: second value
+c	float: third value
+Returns	float
+Related	dist()
+*/
+float mag(float a, float b)
+{
+    return dist(0, 0, a, b);
+}
+
+float mag(float a, float b, float c)
+{
+    return dist(0, 0, 0, a, b, c);
+}
+
+/*
+Name
 map()
+Examples
+size(200, 200);
+float value = 25;
+float m = map(value, 0, 100, 0, width);
+ellipse(m, 200, 10, 10);
+float value = 110;
+float m = map(value, 0, 100, -20, -10);
+println(m);  // Prints "-9.0"
+void setup() {
+  size(200, 200);
+  noStroke();
+}
+
+void draw() {
+  background(204);
+  float  x1 = map(mouseX, 0, width, 50, 150);
+  ellipse(x1, 75, 50, 50);
+  float x2 = map(mouseX, 0, width, 0, 200);
+  ellipse(x2, 125, 50, 50);
+}
+Description	Re-maps a number from one range to another.
+
+In the first example above, the number 25 is converted from a value in the range of 0 to 100 into a value that ranges from the left edge of the window (0) to the right edge (width).
+
+As shown in the second example, numbers outside of the range are not clamped to the minimum and maximum parameters values, because out-of-range values are often intentional and useful.
+Syntax
+map(value, start1, stop1, start2, stop2)
+Parameters
+value	float: the incoming value to be converted
+start1	float: lower bound of the value's current range
+stop1	float: upper bound of the value's current range
+start2	float: lower bound of the value's target range
+stop2	float: upper bound of the value's target range
+Returns	float
+Related	norm()
+lerp()
+*/
+float map(float value, float start1, float stop1, float start2, float stop2)
+{
+    return (stop2 - start2) * (value - start1) / (stop1 - start1) + start2;
+}
+
+/*
+Name
 max()
+Examples
+int a = max(5, 9);            // Sets 'a' to 9
+int b = max(-4, -12);         // Sets 'b' to -4
+float c = max(12.3, 230.24);  // Sets 'c' to 230.24
+int[] values = { 9, -4, 362, 21 };  // Create an array of ints
+int d = max(values);                // Sets 'd' to 362
+Description	Determines the largest value in a sequence of numbers, and then returns that value. max() accepts either two or three float or int values as parameters, or an array of any length.
+Syntax
+max(a, b)
+max(a, b, c)
+max(list)
+Parameters
+a	float, or int: first number to compare
+b	float, or int: second number to compare
+c	float, or int: third number to compare
+list	float[], or int[]: array of numbers to compare
+Returns	int or float
+Related	min()
+*/
+int max(int a, int b)
+{
+    return a > b ? a : b;
+}
+
+int max(int a, int b, int c)
+{
+    return a > b ? a : (b > c ? b : c);
+}
+
+int max(std::vector<int> list)
+{
+    int result = INT_MIN;
+    for (int value : list) {
+        if (result < value)
+            result = value;
+    }
+    return result;
+}
+
+float max(float a, float b)
+{
+    return a > b ? a : b;
+}
+
+float max(float a, float b, float c)
+{
+    return a > b ? a : (b > c ? b : c);
+}
+
+float max(std::vector<float> list)
+{
+    float result = INT_MIN;
+    for (float value : list) {
+        if (result < value)
+            result = value;
+    }
+    return result;
+}
+
+/*
+Name
 min()
+Examples
+int d = min(5, 9);            // Sets 'd' to 5
+int e = min(-4, -12);         // Sets 'e' to -12
+float f = min(12.3, 230.24);  // Sets 'f' to 12.3
+int[] values = { 5, 1, 2, -3 };  // Create an array of ints
+int h = min(values);             // Sets 'h' to -3
+Description	Determines the smallest value in a sequence of numbers, and then returns that value. min() accepts either two or three float or int values as parameters, or an array of any length.
+Syntax
+min(a, b)
+min(a, b, c)
+min(list)
+Parameters
+a	int, or float: first number
+b	int, or float: second number
+c	int, or float: third number
+list	float[], or int[]: array of numbers to compare
+Returns	float or int
+Related	max()
+*/
+int min(int a, int b)
+{
+    return a < b ? a : b;
+}
+
+int min(int a, int b, int c)
+{
+    return a < b ? a : (b < c ? b : c);
+}
+
+int min(std::vector<int> list)
+{
+    int result = INT_MAX;
+    for (int value : list) {
+        if (result > value)
+            result = value;
+    }
+    return result;
+}
+
+float min(float a, float b)
+{
+    return a < b ? a : b;
+}
+
+float min(float a, float b, float c)
+{
+    return a < b ? a : (b < c ? b : c);
+}
+
+float min(std::vector<float> list)
+{
+    float result = INT_MAX;
+    for (float value : list) {
+        if (result > value)
+            result = value;
+    }
+    return result;
+}
+
+/*
+Name
 norm()
+Examples
+float value = 20;
+float n = norm(value, 0, 50);
+println(n);  // Prints "0.4"
+float value = -10;
+float n = norm(value, 0, 100);
+println(n);  // Prints "-0.1"
+Description	Normalizes a number from another range into a value between 0 and 1. Identical to map(value, low, high, 0, 1).
+
+Numbers outside of the range are not clamped to 0 and 1, because out-of-range values are often intentional and useful. (See the second example above.)
+Syntax
+norm(value, start, stop)
+Parameters
+value	float: the incoming value to be converted
+start	float: lower bound of the value's current range
+stop	float: upper bound of the value's current range
+Returns	float
+Related	map()
+lerp()
+*/
+float norm(float value, float start, float stop)
+{
+    return map(value, start, stop, 0, 1);
+}
+
+/*
 pow()
+*/
+
+/*
+Name
 round()
+Examples
+float x = 9.2;
+int rx = round(x);  // Sets 'rx' to 9
+
+float y = 9.5;
+int ry = round(y);  // Sets 'ry' to 10
+
+float z = 9.9;
+int rz = round(z);  // Sets 'rz' to 10
+
+Description	Calculates the integer closest to the n parameter. For example, round(133.8) returns the value 134.
+Syntax
+round(n)
+Parameters
+n	float: number to round
+Returns	int
+Related	floor()
+ceil()
+*/
+/*int round(float n)
+{
+    return (int)(n + 0.5);
+}*/
+
+/*
+Name
 sq()
-sqrt()*/
+Examples
+example pic
+noStroke();
+float a = sq(1);   // Sets 'a' to 1
+float b = sq(-5);  // Sets 'b' to 25
+float c = sq(9);   // Sets 'c' to 81
+rect(0, 25, a, 10);
+rect(0, 45, b, 10);
+rect(0, 65, c, 10);
+Description	Squares a number (multiplies a number by itself). The result is always a positive number, as multiplying two negative numbers always yields a positive result. For example, -1 * -1 = 1.
+Syntax
+sq(n)
+Parameters
+n	float: number to square
+Returns	float
+Related	sqrt()
+*/
+float sq(float n)
+{
+    return n * n;
+}
+
+/*sqrt()*/
 
 //Trigonometry
 /*acos()
@@ -9699,8 +10584,49 @@ asin()
 atan()
 atan2()
 cos()
+*/
+
+/*
+Name
 degrees()
+Examples
+float rad = PI/4;
+float deg = degrees(rad);
+println(rad + " radians is " + deg + " degrees");
+Description	Converts a radian measurement to its corresponding value in degrees. Radians and degrees are two ways of measuring the same thing. There are 360 degrees in a circle and 2*PI radians in a circle. For example, 90° = PI/2 = 1.5707964. All trigonometric functions in Processing require their parameters to be specified in radians.
+Syntax
+degrees(radians)
+Parameters
+radians	float: radian value to convert to degrees
+Returns	float
+Related	radians()
+*/
+float degrees(float radians)
+{
+    return radians * 180.0 / PI;
+}
+
+/*
+Name
 radians()
+Examples
+float deg = 45.0;
+float rad = radians(deg);
+println(deg + " degrees is " + rad + " radians");
+Description	Converts a degree measurement to its corresponding value in radians. Radians and degrees are two ways of measuring the same thing. There are 360 degrees in a circle and 2*PI radians in a circle. For example, 90° = PI/2 = 1.5707964. All trigonometric functions in Processing require their parameters to be specified in radians.
+Syntax
+radians(degrees)
+Parameters
+degrees	float: degree value to convert to radians
+Returns	float
+Related	degrees()
+*/
+float radians(float degrees)
+{
+    return degrees * PI / 180;
+}
+
+/*
 sin()
 tan()*/
 
@@ -9904,7 +10830,30 @@ Returns    float
 Related    random()
 noise()
 */
-float randomGaussian();
+float randomGaussian()
+{
+    static float V1, V2, S;
+    static int phase = 0;
+    float X;
+
+    if ( phase == 0 ) {
+        do {
+            float U1 = (float)rand() / RAND_MAX;
+            float U2 = (float)rand() / RAND_MAX;
+
+            V1 = 2 * U1 - 1;
+            V2 = 2 * U2 - 1;
+            S = V1 * V1 + V2 * V2;
+        } while(S >= 1 || S == 0);
+
+        X = V1 * sqrt(-2 * log(S) / S);
+    } else
+        X = V2 * sqrt(-2 * log(S) / S);
+
+    phase = 1 - phase;
+
+    return X;
+}
 
 /*
 Name

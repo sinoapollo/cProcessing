@@ -6,6 +6,8 @@
 //  Copyright © 2019 Apollo Chen. All rights reserved.
 //
 
+#include "windef.h"
+#include "wingdi.h"
 #include <windows.h>
 #include "lib/Processing.h"
 #include <gl/wglext.h>
@@ -434,6 +436,7 @@ void CALLBACK TimerDrawProc(HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime
     $mouseY = point.y;
     if ($loop) {
         resetMatrix();
+        $frameCount ++;
         draw();
         SwapBuffers(GetDC(hwnd));
     }

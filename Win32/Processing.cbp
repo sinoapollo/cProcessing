@@ -47,6 +47,8 @@
 		<Unit filename="include/GL/glcorearb.h" />
 		<Unit filename="include/GL/wglext.h" />
 		<Unit filename="include/KHR/khrplatform.h" />
+		<Unit filename="include/windef.h" />
+		<Unit filename="include/wingdi.h" />
 		<Unit filename="lib/gl3w.c">
 			<Option compilerVar="CC" />
 		</Unit>

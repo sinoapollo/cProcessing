@@ -83,9 +83,9 @@ enum _penum {
     BEVEL,
     /*ROUND*/
     //kind
-#ifndef _WINDEF_H
+//#ifndef _WINDEF_H
     POINTS = 321,
-#endif
+//#endif
     LINES = 322,
     TRIANGLES,
     TRIANGLE_FAN,
@@ -9584,21 +9584,321 @@ Bitwise Operators
 //Calculation
 /*abs()
 ceil()
+*/
+
+/*
+Name
 constrain()
+Examples
+void draw()
+{
+  background(204);
+  float mx = constrain(mouseX, 30, 70);
+  rect(mx-10, 40, 20, 20);
+}
+Description	Constrains a value to not exceed a maximum and minimum value.
+Syntax
+constrain(amt, low, high)
+Parameters
+amt	int, or float: the value to constrain
+low	int, or float: minimum limit
+high	int, or float: maximum limit
+Returns	float or int
+Related	max()
+min()
+*/
+float constrain(float amt, float low, float high);
+int constrain(int amt, int low, int high);
+
+/*
+Name
 dist()
+Examples
+// Sets the background gray value based on the distance
+// of the mouse from the center of the screen
+void draw() {
+    noStroke();
+    float d = dist(width/2, height/2, mouseX, mouseY);
+    float maxDist = dist(0, 0, width/2, height/2);
+    float gray = map(d, 0, maxDist, 0, 255);
+    fill(gray);
+    rect(0, 0, width, height);
+}
+Description    Calculates the distance between two points.
+Syntax
+dist(x1, y1, x2, y2)
+dist(x1, y1, z1, x2, y2, z2)
+Parameters
+x1    float: x-coordinate of the first point
+y1    float: y-coordinate of the first point
+z1    float: z-coordinate of the first point
+x2    float: x-coordinate of the second point
+y2    float: y-coordinate of the second point
+z2    float: z-coordinate of the second point
+Returns    float
+*/
+float dist(float x1, float y1, float x2, float y2);
+float dist(float x1, float y1, float z1, float x2, float y2, float z2);
+/*
 exp()
 floor()
+*/
+
+/*
+Name
 lerp()
+Examples
+example pic
+float a = 20;
+float b = 80;
+float c = lerp(a, b, .2);
+float d = lerp(a, b, .5);
+float e = lerp(a, b, .8);
+beginShape(POINTS);
+vertex(a, 50);
+vertex(b, 50);
+vertex(c, 50);
+vertex(d, 50);
+vertex(e, 50);
+endShape();
+example pic
+int x1 = 15;
+int y1 = 10;
+int x2 = 80;
+int y2 = 90;
+line(x1, y1, x2, y2);
+for (int i = 0; i <= 10; i++) {
+  float x = lerp(x1, x2, i/10.0) + 10;
+  float y = lerp(y1, y2, i/10.0);
+  point(x, y);
+}
+Description	Calculates a number between two numbers at a specific increment. The amt parameter is the amount to interpolate between the two values where 0.0 equal to the first point, 0.1 is very near the first point, 0.5 is half-way in between, etc. The lerp function is convenient for creating motion along a straight path and for drawing dotted lines.
+Syntax
+lerp(start, stop, amt)
+Parameters
+start	float: first value
+stop	float: second value
+amt	float: float between 0.0 and 1.0
+Returns	float
+Related	curvePoint()
+bezierPoint()
+lerp()
+lerpColor()
+*/
+float lerp(float start, float stop, float amt);
+
+/*
 log()
+*/
+
+/*
+Name
 mag()
+Examples
+example pic
+float x1 = 20;
+float x2 = 80;
+float y1 = 30;
+float y2 = 70;
+
+line(0, 0, x1, y1);
+println(mag(x1, y1));  // Prints "36.05551"
+line(0, 0, x2, y1);
+println(mag(x2, y1));  // Prints "85.44004"
+line(0, 0, x1, y2);
+println(mag(x1, y2));  // Prints "72.8011"
+line(0, 0, x2, y2);
+println(mag(x2, y2));  // Prints "106.30146"
+Description	Calculates the magnitude (or length) of a vector. A vector is a direction in space commonly used in computer graphics and linear algebra. Because it has no "start" position, the magnitude of a vector can be thought of as the distance from the coordinate 0,0 to its x,y value. Therefore, mag() is a shortcut for writing dist(0, 0, x, y).
+Syntax
+mag(a, b)
+mag(a, b, c)
+Parameters
+a	float: first value
+b	float: second value
+c	float: third value
+Returns	float
+Related	dist()
+*/
+float mag(float a, float b);
+float mag(float a, float b, float c);
+
+/*
+Name
 map()
+Examples
+size(200, 200);
+float value = 25;
+float m = map(value, 0, 100, 0, width);
+ellipse(m, 200, 10, 10);
+float value = 110;
+float m = map(value, 0, 100, -20, -10);
+println(m);  // Prints "-9.0"
+void setup() {
+  size(200, 200);
+  noStroke();
+}
+
+void draw() {
+  background(204);
+  float  x1 = map(mouseX, 0, width, 50, 150);
+  ellipse(x1, 75, 50, 50);
+  float x2 = map(mouseX, 0, width, 0, 200);
+  ellipse(x2, 125, 50, 50);
+}
+Description	Re-maps a number from one range to another.
+
+In the first example above, the number 25 is converted from a value in the range of 0 to 100 into a value that ranges from the left edge of the window (0) to the right edge (width).
+
+As shown in the second example, numbers outside of the range are not clamped to the minimum and maximum parameters values, because out-of-range values are often intentional and useful.
+Syntax
+map(value, start1, stop1, start2, stop2)
+Parameters
+value	float: the incoming value to be converted
+start1	float: lower bound of the value's current range
+stop1	float: upper bound of the value's current range
+start2	float: lower bound of the value's target range
+stop2	float: upper bound of the value's target range
+Returns	float
+Related	norm()
+lerp()
+*/
+float map(float value, float start1, float stop1, float start2, float stop2);
+
+/*
+Name
 max()
+Examples
+int a = max(5, 9);            // Sets 'a' to 9
+int b = max(-4, -12);         // Sets 'b' to -4
+float c = max(12.3, 230.24);  // Sets 'c' to 230.24
+int[] values = { 9, -4, 362, 21 };  // Create an array of ints
+int d = max(values);                // Sets 'd' to 362
+Description	Determines the largest value in a sequence of numbers, and then returns that value. max() accepts either two or three float or int values as parameters, or an array of any length.
+Syntax
+max(a, b)
+max(a, b, c)
+max(list)
+Parameters
+a	float, or int: first number to compare
+b	float, or int: second number to compare
+c	float, or int: third number to compare
+list	float[], or int[]: array of numbers to compare
+Returns	int or float
+Related	min()
+*/
+int max(int a, int b);
+int max(int a, int b, int c);
+int max(std::vector<int> list);
+float max(float a, float b);
+float max(float a, float b, float c);
+float max(std::vector<float> list);
+
+/*
+Name
 min()
+Examples
+int d = min(5, 9);            // Sets 'd' to 5
+int e = min(-4, -12);         // Sets 'e' to -12
+float f = min(12.3, 230.24);  // Sets 'f' to 12.3
+int[] values = { 5, 1, 2, -3 };  // Create an array of ints
+int h = min(values);             // Sets 'h' to -3
+Description	Determines the smallest value in a sequence of numbers, and then returns that value. min() accepts either two or three float or int values as parameters, or an array of any length.
+Syntax
+min(a, b)
+min(a, b, c)
+min(list)
+Parameters
+a	int, or float: first number
+b	int, or float: second number
+c	int, or float: third number
+list	float[], or int[]: array of numbers to compare
+Returns	float or int
+Related	max()
+*/
+int min(int a, int b);
+int min(int a, int b, int c);
+int min(std::vector<int> list);
+float min(float a, float b);
+float min(float a, float b, float c);
+float min(std::vector<float> list);
+
+/*
+Name
 norm()
+Examples
+float value = 20;
+float n = norm(value, 0, 50);
+println(n);  // Prints "0.4"
+float value = -10;
+float n = norm(value, 0, 100);
+println(n);  // Prints "-0.1"
+Description	Normalizes a number from another range into a value between 0 and 1. Identical to map(value, low, high, 0, 1).
+
+Numbers outside of the range are not clamped to 0 and 1, because out-of-range values are often intentional and useful. (See the second example above.)
+Syntax
+norm(value, start, stop)
+Parameters
+value	float: the incoming value to be converted
+start	float: lower bound of the value's current range
+stop	float: upper bound of the value's current range
+Returns	float
+Related	map()
+lerp()
+*/
+float norm(float value, float start, float stop);
+
+/*
 pow()
+*/
+
+/*
+Name
 round()
+Examples
+float x = 9.2;
+int rx = round(x);  // Sets 'rx' to 9
+
+float y = 9.5;
+int ry = round(y);  // Sets 'ry' to 10
+
+float z = 9.9;
+int rz = round(z);  // Sets 'rz' to 10
+
+Description	Calculates the integer closest to the n parameter. For example, round(133.8) returns the value 134.
+Syntax
+round(n)
+Parameters
+n	float: number to round
+Returns	int
+Related	floor()
+ceil()
+*/
+//int round(float n);
+
+/*
+Name
 sq()
-sqrt()*/
+Examples
+example pic
+noStroke();
+float a = sq(1);   // Sets 'a' to 1
+float b = sq(-5);  // Sets 'b' to 25
+float c = sq(9);   // Sets 'c' to 81
+rect(0, 25, a, 10);
+rect(0, 45, b, 10);
+rect(0, 65, c, 10);
+Description	Squares a number (multiplies a number by itself). The result is always a positive number, as multiplying two negative numbers always yields a positive result. For example, -1 * -1 = 1.
+Syntax
+sq(n)
+Parameters
+n	float: number to square
+Returns	float
+Related	sqrt()
+*/
+float sq(float n);
+
+/*sqrt()*/
 
 //Trigonometry
 /*acos()
@@ -9606,8 +9906,43 @@ asin()
 atan()
 atan2()
 cos()
+*/
+
+/*
+Name
 degrees()
+Examples
+float rad = PI/4;
+float deg = degrees(rad);
+println(rad + " radians is " + deg + " degrees");
+Description	Converts a radian measurement to its corresponding value in degrees. Radians and degrees are two ways of measuring the same thing. There are 360 degrees in a circle and 2*PI radians in a circle. For example, 90° = PI/2 = 1.5707964. All trigonometric functions in Processing require their parameters to be specified in radians.
+Syntax
+degrees(radians)
+Parameters
+radians	float: radian value to convert to degrees
+Returns	float
+Related	radians()
+*/
+float degrees(float radians);
+
+/*
+Name
 radians()
+Examples
+float deg = 45.0;
+float rad = radians(deg);
+println(deg + " degrees is " + rad + " radians");
+Description	Converts a degree measurement to its corresponding value in radians. Radians and degrees are two ways of measuring the same thing. There are 360 degrees in a circle and 2*PI radians in a circle. For example, 90° = PI/2 = 1.5707964. All trigonometric functions in Processing require their parameters to be specified in radians.
+Syntax
+radians(degrees)
+Parameters
+degrees	float: degree value to convert to radians
+Returns	float
+Related	degrees()
+*/
+float radians(float degrees);
+
+/*
 sin()
 tan()*/
 
