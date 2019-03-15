@@ -1983,7 +1983,7 @@ typedef struct tagEMRPOLYDRAW16 {
 	EMR emr;
 	RECTL rclBounds;
 	DWORD cpts;
-	tagPOINTS apts[1];
+	struct tagPOINTS apts[1];
 	BYTE abTypes[1];
 } EMRPOLYDRAW16,*PEMRPOLYDRAW16;
 typedef struct tagEMRPOLYLINE {
@@ -2012,7 +2012,7 @@ typedef struct tagEMRPOLYPOLYLINE16 {
 	DWORD nPolys;
 	DWORD cpts;
 	DWORD aPolyCounts[1];
-	tagPOINTS apts[1];
+	struct tagPOINTS apts[1];
 } EMRPOLYPOLYLINE16,*PEMRPOLYPOLYLINE16,EMRPOLYPOLYGON16,*PEMRPOLYPOLYGON16;
 typedef struct tagEMRPOLYTEXTOUTA {
 	EMR emr;

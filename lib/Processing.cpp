@@ -75,6 +75,26 @@ _penum $blendMode = BLEND;
 _penum shapeKind;
 std::vector<PVector> vertices;
 
+//right multi Mat4
+void rightMultiMat4(mat4 paramMat)
+{
+
+    mat4 oldMat = $curMat;
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            $curMat.m[i * 4 + j] = oldMat.m[i * 4] * paramMat.m[j] + oldMat.m[i * 4 + 1] * paramMat.m[j + 4] + oldMat.m[i * 4 + 2] * paramMat.m[j + 8] + oldMat.m[i * 4 + 3] * paramMat.m[j + 12];
+}
+
+//left multi Mat4
+void leftMultiMat4(mat4 paramMat)
+{
+    
+    mat4 oldMat = $curMat;
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            $curMat.m[i * 4 + j] = paramMat.m[i * 4] * oldMat.m[j] + paramMat.m[i * 4 + 1] * oldMat.m[j + 4] + paramMat.m[i * 4 + 2] * oldMat.m[j + 8] + paramMat.m[i * 4 + 3] * oldMat.m[j + 12];
+}
+
 //
 class PointArray
 {
@@ -107,6 +127,28 @@ public:
     PVector Bound[2];
     int status; // 1 unclosed, 0 closed
 };
+
+class PointIndexArray
+{
+public:
+    PointIndexArray(int index) {
+        this->indices.push_back(index);
+        this->status = 1;
+    }
+    PointIndexArray() {
+        this->reset();
+    }
+    void addPointIndex(int index) {
+        this->indices.push_back(index);
+    }
+    void reset() {
+        this->indices.clear();
+        this->status = 1;
+    }
+    std::vector<int> indices;
+    int status; // 1 unclosed, 0 closed
+};
+
 
 //check the point is on the left or right side of the line
 //return >0  right, <0 -left, =0- in line
@@ -160,8 +202,79 @@ int checkCross(PVector newP1, PVector newP2, PVector oldP1, PVector oldP2, PVect
 }
 
 //预设条件： 一线到底， 默认闭合，
-//设计思路：从一点出发，遍历向左向右闭合，需要解决的是交叉时怎么处理，特别是穿越现有闭合（好像可以忽略）
-//有交叉就会有闭合
+
+/*int buildFillPointIndices(std::vector<PVector> & points, std::vector<PointIndexArray> & pointIndexArrays)
+{
+    std::vector<PointIndexArray> closedPointArrays;
+    PointIndexArray pointIndexArray(0);
+    PVector crossPoint;
+    int i = points.size() - 1;
+    pointIndexArray.addPointIndex(i);
+    for (; i > 0; i --) {
+        for (std::vector<PointIndexArray>::iterator j = pointIndexArray.indices.end() - 2; j > pointIndexArray.indices.begin(); j --) {
+            if(checkCross(points[i - 1], points[i], *(j - 1), *j, crossPoint) > 0) {
+                PointArray closedPoints(crossPoint);
+                for (std::vector<PVector>::iterator k = j; k != pointArray.points.end(); k ++) {
+                    closedPoints.addPoint(*k);
+                }
+                pointArray.points.erase(j, pointArray.points.end());
+                closedPoints.status = 0;
+                closedPointArrays.push_back(closedPoints);
+                for(int xxx = 0; xxx < closedPoints.points.size(); xxx ++)
+                    printf("%d %f %f\n", i, closedPoints.points[xxx].x, closedPoints.points[xxx].y);
+                pointArray.addPoint(crossPoint);
+                break;
+            }
+        }
+        pointArray.addPoint(*i);
+    }
+    if (pointArray.points.size() > 2) {
+        pointArray.points.erase(pointArray.points.begin());
+        pointArray.status = 0;
+        closedPointArrays.push_back(pointArray);
+    }
+    
+    printf("closedPointArray size %d\n", closedPointArrays.size());
+    
+    for (std::vector<PointArray>::iterator item = closedPointArrays.begin(); item != closedPointArrays.end(); item ++) {
+        pointArray.reset();
+        std::vector<PVector>::iterator itPoint = (*item).points.begin();
+        pointArray.addPoint(*itPoint);
+        itPoint ++;
+        pointArray.addPoint(*itPoint);
+        itPoint = (*item).points.end() - 1;
+        int direction;
+        while(itPoint > (*item).points.begin() + 1 && !(direction = getPointDirection(*((*item).points.begin()), *((*item).points.begin()+1), *itPoint))) {
+            itPoint --;
+        }
+        if (itPoint == (*item).points.begin() + 1) continue;
+        pointArrays.push_back(pointArray);
+        int curGroup = pointArrays.size() - 1;
+        for (int itemIndex = 2; itemIndex < (*item).points.size(); itemIndex ++) {
+            itPoint = (*item).points.begin() + itemIndex;
+            for (int index = pointArrays.size() - 1; index >= curGroup; index --) {
+                PointArray * tempPoints = & pointArrays[index];
+                if (getPointDirection(*(tempPoints->points.end() - 2), tempPoints->points.back(), *itPoint) * direction > 0) {
+                    tempPoints->addPoint(*itPoint);
+                    break;
+                }
+                else {
+                    if (tempPoints->points.size() > 2)
+                        tempPoints->status = 0;
+                    pointArray.reset();
+                    pointArray.addPoint(*(tempPoints->points.begin()));
+                    pointArray.addPoint(tempPoints->points.back());
+                    pointArrays.push_back(pointArray);
+                }
+            }
+        }
+        for (std::vector<PointArray>::iterator curGroup1 = pointArrays.begin() + curGroup; curGroup1 != pointArrays.end(); curGroup1 ++) {
+            (*curGroup1).status = 0;
+        }
+    }
+    return pointArrays.size();
+}
+*/
 
 int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> & pointArrays)
 {
@@ -179,6 +292,8 @@ int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> 
                 pointArray.points.erase(j, pointArray.points.end());
                 closedPoints.status = 0;
                 closedPointArrays.push_back(closedPoints);
+                for(int xxx = 0; xxx < closedPoints.points.size(); xxx ++)
+                    printf("%d %f %f\n", i, closedPoints.points[xxx].x, closedPoints.points[xxx].y);
                 pointArray.addPoint(crossPoint);
                 break;
             }
@@ -190,6 +305,9 @@ int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> 
         pointArray.status = 0;
         closedPointArrays.push_back(pointArray);
     }
+    
+    printf("closedPointArray size %d\n", closedPointArrays.size());
+    
     for (std::vector<PointArray>::iterator item = closedPointArrays.begin(); item != closedPointArrays.end(); item ++) {
         pointArray.reset();
         std::vector<PVector>::iterator itPoint = (*item).points.begin();
@@ -202,18 +320,12 @@ int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> 
             itPoint --;
         }
         if (itPoint == (*item).points.begin() + 1) continue;
-        printf("%d %d\n", direction, item->points.size());
         pointArrays.push_back(pointArray);
         int curGroup = pointArrays.size() - 1;
-        printf("curGroup %d\n", curGroup);
         for (int itemIndex = 2; itemIndex < (*item).points.size(); itemIndex ++) {
             itPoint = (*item).points.begin() + itemIndex;
-            printf("itPoint %d\n", itPoint);
             for (int index = pointArrays.size() - 1; index >= curGroup; index --) {
                 PointArray * tempPoints = & pointArrays[index];
-                printf("index %d\n", index);
-                printf("index points.size %d\n", tempPoints->points.size());
-                printf("pointArrays.size %d\n", pointArrays.size());
                 if (getPointDirection(*(tempPoints->points.end() - 2), tempPoints->points.back(), *itPoint) * direction > 0) {
                     tempPoints->addPoint(*itPoint);
                     break;
@@ -224,10 +336,7 @@ int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> 
                     pointArray.reset();
                     pointArray.addPoint(*(tempPoints->points.begin()));
                     pointArray.addPoint(tempPoints->points.back());
-                    printf("pointArray.points.size %d\n", pointArray.points.size());
-                    printf("before pointArrays.size %d\n", pointArrays.size());
                     pointArrays.push_back(pointArray);
-                    printf("after pointArrays.size %d\n", pointArrays.size());
                 }
             }
         }
@@ -290,7 +399,6 @@ void drawVertices(std::vector<PVector> points, _penum mode)
         for(int i = points.size() - 1; i >= 0; i --) {
             vertexData[8 * i] = points[i].x;
             vertexData[8 * i + 1] = points[i].y;
-            printf("%d %f %f\n", i, vertexData[8 * i], vertexData[8 * i + 1]);
             vertexData[8 * i + 2] = $zP2D;
             vertexData[8 * i + 3] = 1.0;
             vertexData[8 * i + 7] = 1.0;
@@ -6469,7 +6577,7 @@ void printMatrix()
 {
     for (int i = 0; i < 16; i ++) {
         printf("%f ", $curMat.m[i]);
-        if (i > 0 && i % 4 == 0) printf("\n");
+        if (i % 4 == 3) printf("\n");
     }
 }
 
@@ -6573,14 +6681,7 @@ radians()
 */
 void rotate(float angle)
 {
-    float cosa = cosf(-angle);
-    float sina = sinf(-angle);
-    float m0 = $curMat.m[0];
-    float m5 = $curMat.m[5];
-    $curMat.m[0] = m0 * cosa;
-    $curMat.m[1] = m5 * sina;
-    $curMat.m[4] = m0 * sina;
-    $curMat.m[5] = m5 * cosa;
+    rotateZ(angle);
 }
 
 /*
@@ -6616,12 +6717,8 @@ void rotateX(float angle)
 {
     float cosa = cosf(-angle);
     float sina = sinf(-angle);
-    float m5 = $curMat.m[5];
-    float m10 = $curMat.m[10];
-    $curMat.m[5] = m5 * cosa;
-    $curMat.m[6] = m10 * sina;
-    $curMat.m[9] = m5 * sina;
-    $curMat.m[10] = m10 * cosa;
+    mat4 paramMat = {1, 0, 0, 0, 0, cosa, -sina, 0, 0, sina, cosa, 0, 0, 0, 0, 1};
+    leftMultiMat4(paramMat);
 }
 
 /*
@@ -6656,12 +6753,8 @@ void rotateY(float angle)
 {
     float cosa = cosf(-angle);
     float sina = sinf(-angle);
-    float m0 = $curMat.m[0];
-    float m10 = $curMat.m[10];
-    $curMat.m[0] = m0 * cosa;
-    $curMat.m[8] = m10 * sina;
-    $curMat.m[2] = m0 * sina;
-    $curMat.m[10] = m10 * cosa;
+    mat4 paramMat = {cosa, 0, sina, 0, 0, 1, 0, 0, sina, 0, cosa, 0, 0, 0, 0, 1};
+    leftMultiMat4(paramMat);
 }
 
 /*
@@ -6696,12 +6789,8 @@ void rotateZ(float angle)
 {
     float cosa = cosf(-angle);
     float sina = sinf(-angle);
-    float m5 = $curMat.m[5];
-    float m10 = $curMat.m[10];
-    $curMat.m[5] = m5 * cosa;
-    $curMat.m[6] = m10 * sina;
-    $curMat.m[9] = m5 * sina;
-    $curMat.m[10] = m10 * cosa;
+    mat4 paramMat = {cosa, -sina, 0, 0, sina, cosa, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    leftMultiMat4(paramMat);
 }
 
 /*
@@ -6748,26 +6837,21 @@ rotateZ()
 */
 void scale(float s)
 {
-    for (int i = 0; i < 4; i ++) {
+    for (int i = 0; i < 16; i ++) {
         $curMat.m[i] *= s;
-        $curMat.m[i + 4] *= s;
-        $curMat.m[i + 8] *= s;
     }
 }
+
 void scale(float x, float y)
 {
-    for (int i = 0; i < 4; i ++) {
-        $curMat.m[i] *= x;
-        $curMat.m[i + 4] *= y;
-    }
+    mat4 paramMat = {x, 0, 0, 0, 0, y, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    leftMultiMat4(paramMat);
 }
+
 void scale(float x, float y, float z)
 {
-    for (int i = 0; i < 4; i ++) {
-        $curMat.m[i] *= x;
-        $curMat.m[i + 4] *= y;
-        $curMat.m[i + 8] *= z;
-    }
+    mat4 paramMat = {x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1};
+    leftMultiMat4(paramMat);
 }
 /*
 
@@ -6863,13 +6947,12 @@ rotateZ()
 scale()
 */
 void translate(float x, float y) {
-    $curMat.m[12] += x * 2 / $width;
-    $curMat.m[13] -= y * 2 / $height;
+    mat4 paramMat = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, 0, 1};
+    leftMultiMat4(paramMat);
 }
 void translate(float x, float y, float z) {
-    $curMat.m[12] += x * 2 / $width;
-    $curMat.m[13] -= y * 2 / $height;
-    $curMat.m[14] += z * 2 / $width;
+    mat4 paramMat = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1};
+    leftMultiMat4(paramMat);
 }
 
 //Lights, Camera
