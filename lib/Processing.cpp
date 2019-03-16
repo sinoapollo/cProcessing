@@ -332,9 +332,6 @@ int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> 
             (*curGroup1).status = 0;
         }
     }
-    for (std::vector<PointArray>::iterator curGroup1 = pointArrays.begin(); curGroup1 != pointArrays.end(); curGroup1 ++) {
-        printf("%d\n", (*curGroup1).status);
-    }
     return pointArrays.size();
 }
 
