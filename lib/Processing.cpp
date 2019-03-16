@@ -101,8 +101,6 @@ class PointArray
 public:
     PointArray(PVector & startPoint) {
         this->points.push_back(startPoint);
-        this->Bound[0].x = this->Bound[1].x = startPoint.x;
-        this->Bound[0].y = this->Bound[1].y = startPoint.y;
         this->status = 1;
     }
     PointArray() {
@@ -110,21 +108,12 @@ public:
     }
     void addPoint(PVector & point) {
         this->points.push_back(point);
-        if (point.x < this->Bound[0].x) this->Bound[0].x = point.x;
-        else if (point.x > this->Bound[1].x) this->Bound[1].x = point.x;
-        if (point.y < this->Bound[0].y) this->Bound[0].y = point.x;
-        else if (point.y > this->Bound[1].y) this->Bound[1].y = point.y;
     }
     void reset() {
         this->points.clear();
-        this->Bound[0].x = INT_MAX;
-        this->Bound[0].y = INT_MAX;
-        this->Bound[1].x = INT_MIN;
-        this->Bound[1].y = INT_MIN;
         this->status = 1;
     }
     std::vector<PVector> points;
-    PVector Bound[2];
     int status; // 1 unclosed, 0 closed
 };
 
@@ -211,19 +200,18 @@ int checkCross(PVector newP1, PVector newP2, PVector oldP1, PVector oldP2, PVect
     int i = points.size() - 1;
     pointIndexArray.addPointIndex(i);
     for (; i > 0; i --) {
-        for (std::vector<PointIndexArray>::iterator j = pointIndexArray.indices.end() - 2; j > pointIndexArray.indices.begin(); j --) {
-            if(checkCross(points[i - 1], points[i], *(j - 1), *j, crossPoint) > 0) {
-                PointArray closedPoints(crossPoint);
-                for (std::vector<PVector>::iterator k = j; k != pointArray.points.end(); k ++) {
-                    closedPoints.addPoint(*k);
+        for (std::vector<int>::iterator j = pointIndexArray.indices.end() - 2; j > pointIndexArray.indices.begin(); j --) {
+            int startPointIndex = *(j - 1);
+            while(checkCross(points[i - 1], points[i], points[*(j - 1)], points[startPointIndex], crossPoint) > 0) {
+                points.push_back(crossPoint);
+                PointIndexArray closedPoints(points.size() - 1);
+                for (std::vector<int>::iterator k = j; k != pointIndexArray.indices.end(); k ++) {
+                    closedPoints.addPointIndex(*k);
                 }
-                pointArray.points.erase(j, pointArray.points.end());
+                pointIndexArray.indices.erase(j, pointIndexArray.indices.end());
                 closedPoints.status = 0;
                 closedPointArrays.push_back(closedPoints);
-                for(int xxx = 0; xxx < closedPoints.points.size(); xxx ++)
-                    printf("%d %f %f\n", i, closedPoints.points[xxx].x, closedPoints.points[xxx].y);
-                pointArray.addPoint(crossPoint);
-                break;
+                pointIndexArray.addPointIndex(points.size() - 1);
             }
         }
         pointArray.addPoint(*i);
@@ -284,7 +272,8 @@ int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> 
     PVector crossPoint;
     for (std::vector<PVector>::iterator i = points.begin() + 1; i != points.end(); i ++) {
         for (std::vector<PVector>::iterator j = pointArray.points.end() - 2; j > pointArray.points.begin(); j --) {
-            if(checkCross(*(i - 1), *i, *(j - 1), *j, crossPoint) > 0) {
+            int checkCrossResult = checkCross(*(i - 1), *i, *(j - 1), *j, crossPoint);
+            if(checkCrossResult > 0) {
                 PointArray closedPoints(crossPoint);
                 for (std::vector<PVector>::iterator k = j; k != pointArray.points.end(); k ++) {
                     closedPoints.addPoint(*k);
@@ -292,9 +281,8 @@ int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> 
                 pointArray.points.erase(j, pointArray.points.end());
                 closedPoints.status = 0;
                 closedPointArrays.push_back(closedPoints);
-                for(int xxx = 0; xxx < closedPoints.points.size(); xxx ++)
-                    printf("%d %f %f\n", i, closedPoints.points[xxx].x, closedPoints.points[xxx].y);
-                pointArray.addPoint(crossPoint);
+                if (checkCrossResult != 2)
+                    pointArray.addPoint(crossPoint);
                 break;
             }
         }
@@ -306,8 +294,6 @@ int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> 
         closedPointArrays.push_back(pointArray);
     }
     
-    printf("closedPointArray size %d\n", closedPointArrays.size());
-    
     for (std::vector<PointArray>::iterator item = closedPointArrays.begin(); item != closedPointArrays.end(); item ++) {
         pointArray.reset();
         std::vector<PVector>::iterator itPoint = (*item).points.begin();
@@ -315,18 +301,20 @@ int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> 
         itPoint ++;
         pointArray.addPoint(*itPoint);
         itPoint = (*item).points.end() - 1;
+        pointArrays.push_back(pointArray);
         int direction;
         while(itPoint > (*item).points.begin() + 1 && !(direction = getPointDirection(*((*item).points.begin()), *((*item).points.begin()+1), *itPoint))) {
             itPoint --;
         }
-        if (itPoint == (*item).points.begin() + 1) continue;
-        pointArrays.push_back(pointArray);
+        //if (itPoint == (*item).points.begin() + 1) {
+        //    continue;
+        //}
         int curGroup = pointArrays.size() - 1;
         for (int itemIndex = 2; itemIndex < (*item).points.size(); itemIndex ++) {
             itPoint = (*item).points.begin() + itemIndex;
             for (int index = pointArrays.size() - 1; index >= curGroup; index --) {
                 PointArray * tempPoints = & pointArrays[index];
-                if (getPointDirection(*(tempPoints->points.end() - 2), tempPoints->points.back(), *itPoint) * direction > 0) {
+                if (getPointDirection(*(tempPoints->points.end() - 2), tempPoints->points.back(), *itPoint) * direction >= 0) {
                     tempPoints->addPoint(*itPoint);
                     break;
                 }
@@ -343,6 +331,9 @@ int buildFillPointArrays(std::vector<PVector> & points, std::vector<PointArray> 
         for (std::vector<PointArray>::iterator curGroup1 = pointArrays.begin() + curGroup; curGroup1 != pointArrays.end(); curGroup1 ++) {
             (*curGroup1).status = 0;
         }
+    }
+    for (std::vector<PointArray>::iterator curGroup1 = pointArrays.begin(); curGroup1 != pointArrays.end(); curGroup1 ++) {
+        printf("%d\n", (*curGroup1).status);
     }
     return pointArrays.size();
 }
